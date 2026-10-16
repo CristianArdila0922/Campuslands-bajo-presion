@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Croquis - Campuslands</title>
+  <style>
+    :root {
+      --primary-dark:#0D1117;--surface:#161B22;--surface-2:#21262D;
+      --brand-accent:#E60067;--secondary-accent:#00E5FF;
+      --text-primary:#F0F6FC;--text-secondary:#8B949E;
+      --success-valid:#238636;--error-warning:#DA3633;--border:#30363D;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--primary-dark);color:var(--text-primary);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+
+    .croquis-wrapper{padding:1.5rem;}
+    .croquis-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem;}
+    .croquis-header h2{font-size:1.3rem;font-weight:700;}
+
+    .legend{display:flex;gap:1rem;flex-wrap:wrap;align-items:center;}
+    .legend-item{display:flex;align-items:center;gap:6px;font-size:0.8rem;color:var(--text-secondary);}
+    .legend-dot{width:14px;height:14px;border-radius:3px;}
+    .l-disponible{background:#238636;}
+    .l-ocupada{background:#1f6feb;}
+    .l-inhabilitada{background:#da3633;}
+    .l-coworking{background:#6e40c9;}
+    .l-auditorio{background:#9e6a03;}
+
+    .floor-tabs{display:flex;gap:0.5rem;margin-bottom:1rem;}
+    .floor-tab{padding:0.45rem 1rem;background:var(--surface-2);border:1px solid var(--border);
+      border-radius:6px;cursor:pointer;font-size:0.85rem;color:var(--text-secondary);transition:all .2s;}
+    .floor-tab.active{background:var(--brand-accent);color:white;border-color:var(--brand-accent);font-weight:600;}
+
+    .floor{display:none;position:relative;}
+    .floor.active{display:block;}
+
+    svg.plano{width:100%;height:auto;border-radius:12px;border:1px solid var(--border);}
+
+    /* Sala base */
+    .sala-shape{cursor:pointer;transition:all .2s;stroke-width:2;}
+    .sala-shape:hover{filter:brightness(1.3);stroke-width:3;}
+
+    /* Estados */
+    .sala-disponible{fill:rgba(35,134,54,0.35);stroke:#238636;}
+    .sala-ocupada{fill:rgba(31,111,235,0.35);stroke:#1f6feb;}
+    .sala-inhabilitada{fill:rgba(218,54,51,0.35);stroke:#da3633;}
+    .sala-coworking{fill:rgba(110,64,201,0.35);stroke:#6e40c9;}
+    .sala-auditorio{fill:rgba(158,106,3,0.35);stroke:#d29922;}
+
+    .sala-label{font-size:11px;font-weight:700;fill:#F0F6FC;pointer-events:none;text-anchor:middle;}
+    .sala-cap{font-size:9px;fill:#8B949E;pointer-events:none;text-anchor:middle;}
+    .sala-status-dot{pointer-events:none;}
+
+    /* Tooltip */
+    .tooltip{
+      position:fixed;background:var(--surface);border:1px solid var(--border);
+      border-radius:8px;padding:0.75rem 1rem;font-size:0.83rem;
+      pointer-events:none;opacity:0;transition:opacity .2s;z-index:999;
+      min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    }
+    .tooltip.show{opacity:1;}
+    .tooltip-name{font-weight:700;font-size:0.95rem;margin-bottom:4px;}
+    .tooltip-row{color:var(--text-secondary);margin-bottom:2px;}
+    .tooltip-status{margin-top:6px;}
+
+    /* Panel lateral */
+    .side-panel{
+      position:fixed;right:0;top:0;bottom:0;width:300px;
+      background:var(--surface);border-left:1px solid var(--border);
+      padding:1.25rem;overflow-y:auto;transform:translateX(100%);
+      transition:transform .3s;z-index:100;
+    }
+    .side-panel.open{transform:translateX(0);}
+    .panel-close{position:absolute;top:1rem;right:1rem;background:none;border:none;
+      color:var(--text-secondary);font-size:1.3rem;cursor:pointer;}
+    .panel-title{font-size:1.1rem;font-weight:700;margin-bottom:0.25rem;}
+    .panel-type{font-size:0.8rem;color:var(--text-secondary);margin-bottom:1rem;}
+    .panel-stat{display:flex;justify-content:space-between;padding:0.5rem 0;
+      border-bottom:1px solid var(--border);font-size:0.88rem;}
+    .panel-stat span:first-child{color:var(--text-secondary);}
+    .panel-stat span:last-child{font-weight:600;}
+    .panel-actions{margin-top:1rem;display:flex;flex-direction:column;gap:0.5rem;}
+    .btn{padding:.55rem 1rem;border:none;border-radius:6px;cursor:pointer;font-size:.88rem;font-weight:600;transition:all .2s;text-align:center;}
+    .btn-primary{background:var(--brand-accent);color:white;}
+    .btn-danger{background:var(--error-warning);color:white;}
+    .btn-success{background:var(--success-valid);color:white;}
+    .btn-secondary{background:var(--surface-2);color:var(--text-primary);border:1px solid var(--border);}
+
+    /* Reservas del día en panel */
+    .reserva-item{background:var(--surface-2);border-radius:6px;padding:0.6rem;margin-top:0.5rem;font-size:0.8rem;}
+    .reserva-item .hora{font-weight:700;color:var(--secondary-accent);}
+    .reserva-item .quien{color:var(--text-secondary);}
+
+    /* Zona texto SVG */
+    .zona-label{font-size:10px;fill:rgba(139,148,158,0.6);font-style:italic;pointer-events:none;}
+
+    /* Overlay al abrir panel */
+    .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99;}
+    .overlay.show{display:block;}
+
+    .status-pill{display:inline-block;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;text-transform:uppercase;}
+    .pill-disponible{background:rgba(35,134,54,.25);color:#3fb950;}
+    .pill-ocupada{background:rgba(31,111,235,.25);color:#58a6ff;}
+    .pill-inhabilitada{background:rgba(218,54,51,.25);color:#f85149;}
+  </style>
+</head>
+<body>
+
+<div class="croquis-wrapper">
+  <div class="croquis-header">
+    <h2>🏛️ Mapa de Instalaciones — Campuslands</h2>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot l-disponible"></div>Disponible</div>
+      <div class="legend-item"><div class="legend-dot l-ocupada"></div>Ocupada</div>
+      <div class="legend-item"><div class="legend-dot l-inhabilitada"></div>Inhabilitada</div>
+      <div class="legend-item"><div class="legend-dot l-coworking"></div>Coworking</div>
+      <div class="legend-item"><div class="legend-dot l-auditorio"></div>Auditorio</div>
+    </div>
+  </div>
+
+  <div class="floor-tabs">
+    <div class="floor-tab active" onclick="showFloor('principal')">🏠 Planta Principal</div>
+    <div class="floor-tab" onclick="showFloor('salones')">🏢 Zona de Salones</div>
+  </div>
+
+  <!-- ===================== PLANTA PRINCIPAL ===================== -->
+  <div class="floor active" id="floor-principal">
+    <svg class="plano" viewBox="0 0 1000 720" xmlns="http://www.w3.org/2000/svg">
+      <!-- Fondo base -->
+      <rect width="1000" height="720" fill="#161B22" rx="8"/>
+
+      <!-- Título planta -->
+      <text x="24" y="36" font-size="16" font-weight="700" fill="#F0F6FC">PLANTA PRINCIPAL</text>
+
+      <!-- Contorno exterior del edificio -->
+      <path d="M40 60 L680 60 L680 140 L940 140 L940 520 L760 520 L760 680 L40 680 Z"
+            fill="#1C2128" stroke="#30363D" stroke-width="2"/>
+
+      <!-- ── AUDITORIO (semicírculo arriba derecha) ── -->
+      <g id="sala-auditorio" class="sala-shape sala-auditorio"
+         onclick="openPanel('Auditorio')" onmouseenter="showTip(event,'Auditorio')" onmouseleave="hideTip()">
+        <path d="M700 60 L940 60 L940 370 Q820 370 700 260 Z" rx="4"/>
+      </g>
+      <text x="840" y="185" class="sala-label">AUDITORIO</text>
+      <text x="840" y="200" class="sala-cap">Cap. 100</text>
+      <circle cx="840" cy="215" r="5" fill="#d29922" class="sala-status-dot" id="dot-Auditorio"/>
+
+      <!-- ── SALAS AZUL + BLANCA (centro) ── -->
+      <g id="sala-azul" class="sala-shape sala-coworking"
+         onclick="openPanel('Azul')" onmouseenter="showTip(event,'Azul')" onmouseleave="hideTip()">
+        <rect x="560" y="310" width="80" height="100" rx="4"/>
+      </g>
+      <text x="600" y="356" class="sala-label">AZUL</text>
+      <text x="600" y="370" class="sala-cap">Cap. 10</text>
+
+      <g id="sala-blanca" class="sala-shape sala-coworking"
+         onclick="openPanel('Blanca')" onmouseenter="showTip(event,'Blanca')" onmouseleave="hideTip()">
+        <rect x="648" y="310" width="80" height="100" rx="4"/>
+      </g>
+      <text x="688" y="356" class="sala-label">BLANCA</text>
+      <text x="688" y="370" class="sala-cap">Cap. 12</text>
+
+      <!-- ── AMARILLA + VERDE (arriba centro) ── -->
+      <g id="sala-amarilla" class="sala-shape sala-disponible"
+         onclick="openPanel('Amarilla')" onmouseenter="showTip(event,'Amarilla')" onmouseleave="hideTip()">
+        <rect x="490" y="80" width="100" height="90" rx="4"/>
+      </g>
+      <text x="540" y="122" class="sala-label">AMARILLA</text>
+      <text x="540" y="136" class="sala-cap">Cap. 6</text>
+
+      <g id="sala-verde" class="sala-shape sala-disponible"
+         onclick="openPanel('Verde')" onmouseenter="showTip(event,'Verde')" onmouseleave="hideTip()">
+        <rect x="380" y="600" width="90" height="70" rx="4"/>
+      </g>
+      <text x="425" y="632" class="sala-label">VERDE</text>
+      <text x="425" y="646" class="sala-cap">Cap. 6</text>
+
+      <!-- ── COSMOS ── -->
+      <g id="sala-cosmos" class="sala-shape sala-disponible"
+         onclick="openPanel('Cosmos')" onmouseenter="showTip(event,'Cosmos')" onmouseleave="hideTip()">
+        <rect x="270" y="430" width="180" height="140" rx="4"/>
+      </g>
+      <text x="360" y="498" class="sala-label">COSMOS</text>
+      <text x="360" y="513" class="sala-cap">Cap. 25 · 💻</text>
+      <circle cx="360" cy="528" r="5" fill="#238636" class="sala-status-dot" id="dot-Cosmos"/>
+
+      <!-- Zona Abierta label -->
+      <text x="650" y="440" class="zona-label">Zona Abierta</text>
+      <text x="650" y="453" class="zona-label">Hunters / Networking</text>
+
+      <!-- Baños label -->
+      <rect x="42" y="380" width="160" height="100" fill="rgba(139,148,158,0.08)" stroke="#30363D" stroke-width="1" rx="4"/>
+      <text x="122" y="428" font-size="11" fill="#8B949E" text-anchor="middle">Baños</text>
+
+      <!-- Escaleras -->
+      <rect x="200" y="440" width="60" height="80" fill="rgba(139,148,158,0.1)" stroke="#30363D" stroke-width="1" rx="2"/>
+      <text x="230" y="486" font-size="9" fill="#8B949E" text-anchor="middle">↑↓</text>
+    </svg>
+  </div>
+
+  <!-- ===================== ZONA DE SALONES ===================== -->
+  <div class="floor" id="floor-salones">
+    <svg class="plano" viewBox="0 0 1000 420" xmlns="http://www.w3.org/2000/svg">
+      <rect width="1000" height="420" fill="#161B22" rx="8"/>
+      <text x="24" y="36" font-size="16" font-weight="700" fill="#F0F6FC">ZONA DE SALONES</text>
+
+      <!-- Contorno -->
+      <rect x="20" y="55" width="960" height="340" fill="#1C2128" stroke="#30363D" stroke-width="2" rx="6"/>
+
+      <!-- ── APOLO ── -->
+      <g id="sala-apolo" class="sala-shape sala-disponible"
+         onclick="openPanel('Apolo')" onmouseenter="showTip(event,'Apolo')" onmouseleave="hideTip()">
+        <rect x="30" y="65" width="200" height="175" rx="4"/>
+      </g>
+      <text x="130" y="148" class="sala-label">APOLO</text>
+      <text x="130" y="163" class="sala-cap">Cap. 34 · 💻</text>
+      <circle cx="130" cy="178" r="5" fill="#238636" class="sala-status-dot" id="dot-Apolo"/>
+
+      <!-- ── ARTEMIS ── -->
+      <g id="sala-artemis" class="sala-shape sala-disponible"
+         onclick="openPanel('Artemis')" onmouseenter="showTip(event,'Artemis')" onmouseleave="hideTip()">
+        <rect x="30" y="248" width="200" height="135" rx="4"/>
+      </g>
+      <text x="130" y="310" class="sala-label">ARTEMIS</text>
+      <text x="130" y="325" class="sala-cap">Cap. 32 · 💻</text>
+      <circle cx="130" cy="340" r="5" fill="#238636" class="sala-status-dot" id="dot-Artemis"/>
+
+      <!-- ── SPUTNIK ── -->
+      <g id="sala-sputnik" class="sala-shape sala-disponible"
+         onclick="openPanel('Sputnik')" onmouseenter="showTip(event,'Sputnik')" onmouseleave="hideTip()">
+        <polygon points="240,65 460,65 460,240 310,260 240,240"/>
+      </g>
+      <text x="350" y="155" class="sala-label">SPUTNIK</text>
+      <text x="350" y="170" class="sala-cap">Cap. 38 · 💻</text>
+      <circle cx="350" cy="185" r="5" fill="#238636" class="sala-status-dot" id="dot-Sputnik"/>
+
+      <!-- ── SKYLAB ── -->
+      <g id="sala-skylab" class="sala-shape sala-disponible"
+         onclick="openPanel('Skylab')" onmouseenter="showTip(event,'Skylab')" onmouseleave="hideTip()">
+        <rect x="310" y="290" width="190" height="90" rx="4"/>
+      </g>
+      <text x="405" y="333" class="sala-label">SKYLAB</text>
+      <text x="405" y="348" class="sala-cap">Cap. 20 · 💻</text>
+      <circle cx="405" cy="363" r="5" fill="#238636" class="sala-status-dot" id="dot-Skylab"/>
+
+      <!-- Baños zona salones -->
+      <rect x="530" y="65" width="130" height="90" fill="rgba(139,148,158,0.08)" stroke="#30363D" stroke-width="1" rx="4"/>
+      <text x="595" y="108" font-size="11" fill="#8B949E" text-anchor="middle">Baños</text>
+
+      <!-- Escalera zona salones -->
+      <rect x="800" y="240" width="80" height="140" fill="rgba(139,148,158,0.08)" stroke="#30363D" stroke-width="1" rx="2"/>
+      <text x="840" y="316" font-size="9" fill="#8B949E" text-anchor="middle">↑↓ Escalera</text>
+
+      <!-- Pasillo -->
+      <text x="680" y="200" class="zona-label" font-size="11">Pasillo principal</text>
+    </svg>
+  </div>
+</div>
+
+<!-- Tooltip -->
+<div class="tooltip" id="tooltip">
+  <div class="tooltip-name" id="tip-name">—</div>
+  <div class="tooltip-row" id="tip-tipo">—</div>
+  <div class="tooltip-row" id="tip-cap">—</div>
+  <div class="tooltip-status" id="tip-status">—</div>
+</div>
+
+<!-- Overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+
+<!-- Panel lateral -->
+<div class="side-panel" id="side-panel">
+  <button class="panel-close" onclick="closePanel()">✕</button>
+  <div class="panel-title" id="panel-name">—</div>
+  <div class="panel-type" id="panel-type">—</div>
+  <div id="panel-stats"></div>
+  <div class="panel-actions" id="panel-actions"></div>
+  <div style="margin-top:1rem">
+    <div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:0.5rem">
+      Reservas hoy
+    </div>
+    <div id="panel-reservas"></div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATOS DE SALAS (sincronizados con la BD)
+// ─────────────────────────────────────────────
+const SALAS = {
+  'Auditorio':{ tipo:'auditorio',     cap:100, pcs:false, estado:'disponible' },
+  'Cosmos':   { tipo:'laboratorio',   cap:25,  pcs:true,  estado:'disponible' },
+  'Skylab':   { tipo:'laboratorio',   cap:20,  pcs:true,  estado:'disponible' },
+  'Sputnik':  { tipo:'laboratorio',   cap:38,  pcs:true,  estado:'disponible' },
+  'Apolo':    { tipo:'laboratorio',   cap:34,  pcs:true,  estado:'disponible' },
+  'Artemis':  { tipo:'laboratorio',   cap:32,  pcs:true,  estado:'disponible' },
+  'Blanca':   { tipo:'coworking',     cap:12,  pcs:false, estado:'disponible' },
+  'Azul':     { tipo:'coworking',     cap:10,  pcs:false, estado:'disponible' },
+  'Amarilla': { tipo:'sala_reunion',  cap:6,   pcs:false, estado:'disponible' },
+  'Verde':    { tipo:'sala_reunion',  cap:6,   pcs:false, estado:'disponible' },
+};
+
+const TIPO_LABEL = {
+  auditorio:'Auditorio', laboratorio:'Laboratorio (con PCs)',
+  coworking:'Coworking', sala_reunion:'Sala de reunión'
+};
+
+const API = 'http://localhost:8000/api';
+const token = localStorage.getItem('token');
+
+// ─────────────────────────────────────────────
+// Cargar estados reales desde la API
+// ─────────────────────────────────────────────
+async function loadEstados() {
+  try {
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`${API}/salas`, { headers });
+    if (!res.ok) return;
+    const data = await res.json();
+    data.forEach(s => {
+      if (SALAS[s.nombre]) {
+        SALAS[s.nombre].estado = s.estado;
+        SALAS[s.nombre].id = s.id;
+      }
+      updateSalaVisual(s.nombre, s.estado);
+    });
+  } catch(e) { /* Croquis funciona sin API también */ }
+}
+
+function updateSalaVisual(nombre, estado) {
+  const classMap = {
+    disponible: 'sala-disponible',
+    ocupada:    'sala-ocupada',
+    inhabilitada:'sala-inhabilitada'
+  };
+  const tipoClass = {
+    coworking: 'sala-coworking',
+    auditorio: 'sala-auditorio'
+  };
+  const sala = SALAS[nombre];
+  if (!sala) return;
+
+  const id = `sala-${nombre.toLowerCase()}`;
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.className.baseVal = `sala-shape ${tipoClass[sala.tipo] || classMap[estado] || 'sala-disponible'}`;
+  if (!tipoClass[sala.tipo]) {
+    el.className.baseVal = `sala-shape ${classMap[estado] || 'sala-disponible'}`;
+  }
+
+  const dot = document.getElementById(`dot-${nombre}`);
+  if (dot) {
+    const dotColors = { disponible:'#238636', ocupada:'#1f6feb', inhabilitada:'#da3633' };
+    dot.setAttribute('fill', dotColors[estado] || '#238636');
+  }
+}
+
+// ─────────────────────────────────────────────
+// TOOLTIP
+// ─────────────────────────────────────────────
+function showTip(e, nombre) {
+  const sala = SALAS[nombre]; if (!sala) return;
+  document.getElementById('tip-name').textContent = nombre;
+  document.getElementById('tip-tipo').textContent = '📍 ' + (TIPO_LABEL[sala.tipo] || sala.tipo);
+  document.getElementById('tip-cap').textContent  = '👥 Capacidad: ' + sala.cap + (sala.pcs ? ' · 💻 Con PCs' : '');
+  const statusColors = { disponible:'#3fb950', ocupada:'#58a6ff', inhabilitada:'#f85149' };
+  document.getElementById('tip-status').innerHTML =
+    `<span style="color:${statusColors[sala.estado]||'#8B949E'};font-weight:700">● ${sala.estado.toUpperCase()}</span>`;
+  const tip = document.getElementById('tooltip');
+  tip.style.left = (e.clientX + 14) + 'px';
+  tip.style.top  = (e.clientY - 10) + 'px';
+  tip.classList.add('show');
+}
+
+function hideTip() { document.getElementById('tooltip').classList.remove('show'); }
+
+// Mover tooltip con el mouse
+document.addEventListener('mousemove', e => {
+  const tip = document.getElementById('tooltip');
+  if (tip.classList.contains('show')) {
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 10) + 'px';
+  }
+});
+
+// ─────────────────────────────────────────────
+// PANEL LATERAL
+// ─────────────────────────────────────────────
+let currentSala = null;
+
+async function openPanel(nombre) {
+  const sala = SALAS[nombre]; if (!sala) return;
+  currentSala = nombre;
+  document.getElementById('panel-name').textContent = nombre;
+  document.getElementById('panel-type').textContent = TIPO_LABEL[sala.tipo] || sala.tipo;
+
+  const statusLabel = { disponible:'Disponible ✅', ocupada:'Ocupada 🔵', inhabilitada:'Inhabilitada 🔴' };
+  document.getElementById('panel-stats').innerHTML = `
+    <div class="panel-stat"><span>Capacidad</span><span>${sala.cap} personas</span></div>
+    <div class="panel-stat"><span>Computadores</span><span>${sala.pcs ? 'Sí 💻' : 'No'}</span></div>
+    <div class="panel-stat"><span>Tipo</span><span>${TIPO_LABEL[sala.tipo]}</span></div>
+    <div class="panel-stat"><span>Estado</span><span>${statusLabel[sala.estado] || sala.estado}</span></div>
+  `;
+
+  // Acciones según estado
+  const isAdm = token && isAdmin();
+  let acciones = '';
+  if (sala.estado === 'disponible') {
+    acciones += `<button class="btn btn-primary" onclick="reservarDesdePanel('${nombre}')">📅 Reservar esta sala</button>`;
+    if (isAdm) acciones += `<button class="btn btn-danger" onclick="inhabilitarSala('${nombre}')">🚫 Inhabilitar</button>`;
+  } else if (sala.estado === 'inhabilitada' && isAdm) {
+    acciones += `<button class="btn btn-success" onclick="habilitarSala('${nombre}')">✅ Habilitar</button>`;
+  }
+  document.getElementById('panel-actions').innerHTML = acciones;
+
+  // Reservas de hoy
+  await loadReservasPanel(nombre, sala.id);
+
+  document.getElementById('side-panel').classList.add('open');
+  document.getElementById('overlay').classList.add('show');
+}
+
+async function loadReservasPanel(nombre, salaId) {
+  const container = document.getElementById('panel-reservas');
+  container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.82rem">Cargando...</div>';
+  try {
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch(`${API}/reservas`, { headers });
+    if (!res.ok) { container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.82rem">Inicia sesión para ver reservas</div>'; return; }
+    const data = await res.json();
+    const hoy = new Date().toISOString().split('T')[0];
+    const delDia = data.filter(r => r.sala_nombre === nombre && r.fecha === hoy && ['aprobada','en_curso','pendiente'].includes(r.estado));
+    if (!delDia.length) {
+      container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.82rem">Sin reservas para hoy ✅</div>';
+      return;
+    }
+    container.innerHTML = delDia.map(r => `
+      <div class="reserva-item">
+        <div class="hora">${r.hora_inicio} – ${r.hora_fin}</div>
+        <div class="quien">${r.nombre_solicitante}</div>
+        <div style="margin-top:2px;color:#8B949E">${r.motivo}</div>
+      </div>`).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--text-secondary);font-size:0.82rem">Sin conexión al servidor</div>';
+  }
+}
+
+function closePanel() {
+  document.getElementById('side-panel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+  currentSala = null;
+}
+
+function reservarDesdePanel(nombre) {
+  // Redirigir al sistema principal con la sala preseleccionada
+  window.parent?.postMessage({ action:'reservar', sala:nombre }, '*');
+  // Si abierto standalone, ir al index
+  if (window === window.top) {
+    window.location.href = `index.html?reservar=${encodeURIComponent(nombre)}`;
+  }
+}
+
+async function inhabilitarSala(nombre) {
+  const sala = SALAS[nombre];
+  if (!sala?.id) return;
+  try {
+    const res = await fetch(`${API}/salas/${sala.id}/estado?estado=inhabilitada`, {
+      method:'PUT', headers:{'Authorization':`Bearer ${token}`}
+    });
+    if (res.ok) {
+      SALAS[nombre].estado = 'inhabilitada';
+      updateSalaVisual(nombre, 'inhabilitada');
+      openPanel(nombre);
+      showSnack('Sala inhabilitada', 'error');
+    }
+  } catch(e) { showSnack('Error de conexión','error'); }
+}
+
+async function habilitarSala(nombre) {
+  const sala = SALAS[nombre];
+  if (!sala?.id) return;
+  try {
+    const res = await fetch(`${API}/salas/${sala.id}/estado?estado=disponible`, {
+      method:'PUT', headers:{'Authorization':`Bearer ${token}`}
+    });
+    if (res.ok) {
+      SALAS[nombre].estado = 'disponible';
+      updateSalaVisual(nombre, 'disponible');
+      openPanel(nombre);
+      showSnack('Sala habilitada', 'success');
+    }
+  } catch(e) { showSnack('Error de conexión','error'); }
+}
+
+// ─────────────────────────────────────────────
+// FLOOR TABS
+// ─────────────────────────────────────────────
+function showFloor(id) {
+  document.querySelectorAll('.floor').forEach(f => f.classList.remove('active'));
+  document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('floor-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ─────────────────────────────────────────────
+// SNACK
+// ─────────────────────────────────────────────
+function showSnack(msg, type='info') {
+  let s = document.getElementById('snack');
+  if (!s) {
+    s = document.createElement('div');
+    s.id = 'snack';
+    s.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;padding:.7rem 1.2rem;border-radius:8px;font-size:.88rem;font-weight:500;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(s);
+  }
+  s.textContent = msg;
+  s.style.background = type==='success'?'#238636':type==='error'?'#DA3633':'#00E5FF';
+  s.style.color = type==='info'?'#0D1117':'white';
+  s.style.opacity = '1';
+  setTimeout(()=> s.style.opacity='0', 3000);
+}
+
+function isAdmin() {
+  if (!token) return false;
+  try {
+    const p = JSON.parse(atob(token.split('.')[1]));
+    return ['admin_salas','admin_hardware','admin_eventos'].includes(p.rol);
+  } catch(e) { return false; }
+}
+
+// ─────────────────────────────────────────────
+// INIT + auto-refresh cada 30s
+// ─────────────────────────────────────────────
+loadEstados();
+setInterval(loadEstados, 30000);
+</script>
+</body>
+</html>

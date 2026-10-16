@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Campuslands — Sistema Central de Gestión Operativa</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+  <!-- ── AUTH SCREEN ── -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <span class="brand-icon">🏫</span>
+        <h1>Campuslands</h1>
+        <p>Sistema Central de Gestión Operativa</p>
+      </div>
+
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Iniciar sesión</button>
+        <button class="tab-btn"        onclick="switchTab('register')">Registrarse</button>
+      </div>
+
+      <!-- LOGIN -->
+      <form id="login-form" onsubmit="doLogin(event)">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="login-email" placeholder="usuario@campuslands.com" required/>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="login-password" placeholder="••••••••" required/>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Entrar</button>
+        <p style="margin-top:1rem;font-size:.78rem;color:var(--text-secondary);text-align:center">
+          Admins de prueba: <code>admin.salas@campuslands.com</code> / <code>admin123</code>
+        </p>
+      </form>
+
+      <!-- REGISTER -->
+      <form id="register-form" style="display:none" onsubmit="doRegister(event)">
+        <div class="form-group">
+          <label>Nombre completo</label>
+          <input type="text" id="reg-nombre" placeholder="Juan Pérez" required/>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="reg-email" placeholder="juan@email.com" required/>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="password" id="reg-password" placeholder="••••••••" required/>
+        </div>
+        <div class="form-group">
+          <label>Tipo de usuario</label>
+          <select id="reg-rol"></select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Solicitar acceso</button>
+        <p style="margin-top:.75rem;font-size:.78rem;color:var(--text-secondary);text-align:center">
+          Tu cuenta quedará pendiente de aprobación por un administrador.
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── APP PRINCIPAL ── -->
+  <div id="app-screen" class="app-screen" style="display:none">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="brand-icon">🏫</span>
+        <div>
+          <div class="sidebar-title">Campuslands</div>
+          <div class="sidebar-subtitle" id="user-nombre">...</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="sidebar-footer">
+        <span id="user-badge" class="badge"></span>
+        <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content">
+      <div id="page-content"></div>
+    </main>
+  </div>
+
+  <!-- TOAST -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
